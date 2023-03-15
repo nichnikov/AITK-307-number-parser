@@ -16,7 +16,7 @@ nk_patterns = re.compile(r'(?:\bнк.{0,1}\b.+\bст|\bст.{0,1}\b.+\bнк|\bп
 
 fz_patterns = re.compile(r'(?:\d+.{0,2}фз|фз.{0,2}\d+)')
 kbk_patterns = re.compile(r'(?:\d+.{0,2}кбк|кбк.{0,2}\d+)')
-forms_patterns = re.compile(r'(?:\d+.{0,2}форм\w+|форм\w+.{0,2}\d+)')
+forms_patterns = re.compile(r'(?:\d+.{0,2}форм\w+|форм\w+.{0,2}\d+|форм\w+.{0,2}\w+[-/\\\s+]\d+|\b\w+[-/\\\s+]\d+.{0,2}форм)')
 knd_patterns = re.compile(r'(?:\d+.{0,2}кнд|кнд.{0,2}\d+)')
 ndfl_patterns = re.compile(r'(?:\d.{0,2}ндфл|ндфл.{0,2}\d)')
 npa_patterns = re.compile(r'\d+(?:[-/]\d+)+')
