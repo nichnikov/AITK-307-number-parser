@@ -1,9 +1,14 @@
 import re
 import os
+import time
 import pandas as pd
 
+# рубли https://docs.google.com/spreadsheets/d/1uVllieSyjvu2ElubsFQTBGr_9RtHZVzFOEaGHjog0XU/edit#gid=0
+
 df = pd.read_csv(os.path.join("data", "NUMERIC_FILTR.csv"), sep="\t")
-tx_list = list(df["Text"])
+tx_list = [re.sub(r'[^\d\w\s.,]', " ", str(tx)) for tx in list(df["Text"])]
+print(tx_list)
+
 
 date_patterns = re.compile(r'\d{2}\.\d{2}.\d{4}|\d{4}\.\d{2}.\d{2}|\d{4}\s{0,3}г|'
                            r'(?:янв\w+|фев\w+|мар\w+|апр\w+|мая\w+|июн\w+|июл\w+|авг\w+|сен\w+|окт\w+'
@@ -15,55 +20,48 @@ nk_patterns = re.compile(r'(?:\bнк.{0,1}\b.+\bст|\bст.{0,1}\b.+\bнк|\bп
                          r'\bп[\.\s]{0,1}\b.+\bст.{0,1}\b.+\bнк)')
 
 fz_patterns = re.compile(r'(?:\d+.{0,2}фз|фз.{0,2}\d+)')
-kbk_patterns = re.compile(r'(?:\d+.{0,2}кбк|кбк.{0,2}\d+)')
-forms_patterns = re.compile(r'(?:\d+.{0,2}форм\w+|форм\w+.{0,2}\d+|форм\w+.{0,2}\w+[-/\\\s+]\d+|\b\w+[-/\\\s+]\d+.{0,2}форм)')
+kbk_patterns = re.compile(r'(?:\d+.{0,3}кбк|кбк.{0,3}\d+)')
+forms_patterns = re.compile(
+    r'(?:\d+.{0,2}\bформ\w+|\bформ\w+.{0,2}\d+|\bформ\w+.{0,2}\w+[-/\\\s+]\d+|\b\w+[-/\\\s+]\d+.{0,2}\bформ)')
 knd_patterns = re.compile(r'(?:\d+.{0,2}кнд|кнд.{0,2}\d+)')
-ndfl_patterns = re.compile(r'(?:\d.{0,2}ндфл|ндфл.{0,2}\d)')
+ndfl_patterns = re.compile(r'(?:\d\b.{0,2}ндфл|ндфл.{0,2}\d\b)')
 npa_patterns = re.compile(r'\d+(?:[-/]\d+)+')
-# письмо минфина № 03-03-06/1/67181
+money_patterns = re.compile(r'(?:\d{1,10}(?:|[,.\s])\d{1,10})+(?:|\s+)(?:м[лнрдионад]{0,7}\b(?:|[\s.,])р[убляей]{0,7}\b|т[ысячи]{0,7}\b(?:|[\s.,])р[убляей]{0,7}\b|р[убляей]{0,7}\b(?:|[\s.,]))')
 
-PATTERNS = nk_patterns
-patterns_dict = {"DATES": (date_patterns, "дата_время"),
-                 "FSBU": (fsbu_patterns, "фсбу_номер"),
-                 "NK": (nk_patterns, "нк_статья"),
-                 "FZ": (fz_patterns, "фз_номер"),
-                 "KBK": (kbk_patterns, "кбк_номер"),
-                 "FORMS": (forms_patterns, "форма_номер"),
-                 "KND": (knd_patterns, "кнд_номер"),
-                 "NDFL": (ndfl_patterns, "ндфл_номер"),
-                 "NPA": (npa_patterns, "нпа_номер")
 
+keys_df = pd.read_csv(os.path.join("data", "keywords.csv"), sep="\t")
+keys_patterns = re.compile("|".join(list(keys_df["keys"])))
+
+patterns_dict = {"DATES": (date_patterns, "genдата"),
+                 "FSBU": (fsbu_patterns, "genфсбу"),
+                 "NK": (nk_patterns, "genнкстатья"),
+                 "FZ": (fz_patterns, "genфз"),
+                 "KBK": (kbk_patterns, "genкбк"),
+                 "FORMS": (forms_patterns, "genформа"),
+                 "KND": (knd_patterns, "genкнд"),
+                 "NDFL": (ndfl_patterns, "genндфл"),
+                 "NPA": (npa_patterns, "genнпа"),
+                 "MONEY": (money_patterns, "genденьги")
                  }
+
 
 parsing_texts = []
 for tx in tx_list:
     tx = str(tx).lower()
     d = {"text": tx}
     for i in patterns_dict:
-        d[i] = re.findall(patterns_dict[i][0], tx)
+        d[i] = [re.sub(r'[^\d\w\s,.]', "", t) for t in re.findall(patterns_dict[i][0], str(tx))]
         if d[i]:
             for pt in d[i]:
-                print("ptrn:", pt, "mask:", patterns_dict[i][1], "text:", tx)
                 tx = re.sub(pt, patterns_dict[i][1], str(tx))
-    d["UNCNOWN_NUM"] = re.findall(r'\d+', tx)
+    d["UNCNOWN_NUM"] = re.findall(r'(?:\w+[\/-]\d+|\d+[\/-]\w+|\d+)', tx)
+    d["KEYS"] = re.findall(keys_patterns, tx)
     tx = re.sub(r'\d+', "цифра", str(tx))
     d["clear_text"] = tx
     parsing_texts.append(d)
-"""
-    if re.findall(npa_patterns, str(tx)):
-        print(tx)
-        print("dates:", re.findall(date_patterns, str(tx)))
-        print("FSBU:", re.findall(fsbu_patterns, str(tx)))
-        print("NK:", re.findall(nk_patterns, str(tx)))
-        print("FZ:", re.findall(fz_patterns, str(tx)))
-        print("KBK:", re.findall(kbk_patterns, str(tx)))
-        print("FORMS:", re.findall(forms_patterns, str(tx)))
-        print("KND:", re.findall(knd_patterns, str(tx)))
-        print("NDFL:", re.findall(ndfl_patterns, str(tx)))
-        print("NPA:", re.findall(npa_patterns, str(tx)))
-tx = "в отчетности от 2024 года 2023 г 2021г от 6 сентября 2022 года от 8 августа 2012"
-print(tx, re.findall(date_patterns, tx))"""
 
 print(parsing_texts)
 parsing_texts_df = pd.DataFrame(parsing_texts)
+print(parsing_texts_df)
 parsing_texts_df.to_csv("parsing_texts.csv", sep="\t", index=False)
+# parsing_texts_df.to_csv("parsing_texts.csv", index=False)

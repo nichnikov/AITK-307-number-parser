@@ -1,2 +1,3 @@
 dateparser==1.1.7
 rutimeparser==1.1.1
+price-parser==0.3.4
